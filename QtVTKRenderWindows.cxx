@@ -259,6 +259,7 @@ QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
    //frameLabel.show();
    this->ui->label_observer->connect(&listener, SIGNAL(objectNameChanged(QString)),
                       SLOT(setText(QString)));
+   connect(&listener, SIGNAL(translate(float)), this, SLOT(SimpleTranslate(float)));
 };
 
 void QtVTKRenderWindows::slotExit()

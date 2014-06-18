@@ -7,58 +7,46 @@
 #include "vtkDistanceWidget.h"
 #include "vtkResliceImageViewerMeasurements.h"
 #include <QMainWindow>
-#include "leap.h"
+#include <QElapsedTimer>
 
-// Forward Qt class declarations
-class Ui_QtVTKRenderWindows;
-using namespace Leap;
-
-inline float SimpleTranslate(Frame frame)
-{
-	const GestureList gestures = frame.gestures();
-  for (int g = 0; g < gestures.count(); ++g) {
-    Gesture gesture = gestures[g];
-
-    switch (gesture.type()) {
-      case Gesture::TYPE_CIRCLE:
-      {
-        CircleGesture circle = gesture;
-        std::string clockwiseness;
-
-        if (circle.pointable().direction().angleTo(circle.normal()) <= PI/4) {
-          //clockwiseness = "clockwise";
-			return 1;
-        } else {
-          //clockwiseness = "counterclockwise";
-			return -1;
-        }
-        break;
-      }
-      default:
-        std::cout << std::string(2, ' ')  << "Unknown gesture type." << std::endl;
-        break;
-    }
-  }
-}
+#include "LeapInteraction.h"
 
 class MyListener : public QObject, public Leap::Listener {
 	Q_OBJECT
+
+
 public:
+	MyListener()
+	{
+		//timer = new QTimer(this);
+		timer = new QElapsedTimer();
+		timer->start();
+	}
+
 	virtual void onFrame(const Leap::Controller & ctl) {
-		Leap::Frame f = ctl.frame();
-		// This is a hack so that we avoid having to declare a signal and
-		// use moc generated code.
-		setObjectName(QString::number(f.id()));
-		// emits objectNameChanged(QString)
-		emit translate(SimpleTranslate(f));
+
+		if(timer->elapsed() > 100)
+		{
+			Leap::Frame f = ctl.frame();
+			// This is a hack so that we avoid having to declare a signal and
+			// use moc generated code.
+			setObjectName(QString::number(f.id()));
+			// emits objectNameChanged(QString)
+			emit translate(SimpleTranslate(f));
+			timer->restart();
+		}
+
 	}
 
 private:
-	
+	QElapsedTimer *timer;
 
 signals:
 	void translate(float v);
 };
+
+// Forward Qt class declarations
+class Ui_QtVTKRenderWindows;
 
 
 class QtVTKRenderWindows : public QMainWindow
