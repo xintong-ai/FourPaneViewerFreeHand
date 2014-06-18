@@ -29,6 +29,10 @@
 #include "vtkDistanceRepresentation2D.h"
 #include "vtkPointHandleRepresentation3D.h"
 #include "vtkPointHandleRepresentation2D.h"
+#include "vtkTransform.h"
+
+#include "qlabel.h"
+
 
 
 //----------------------------------------------------------------------------
@@ -247,6 +251,14 @@ QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
 
 	connect(this->ui->resetButton, SIGNAL(pressed()), this, SLOT(ResetViews()));
 	connect(this->ui->AddDistance1Button, SIGNAL(pressed()), this, SLOT(AddDistanceMeasurementToView1()));
+
+   controller.addListener(listener);
+   controller.enableGesture(Leap::Gesture::TYPE_CIRCLE);
+   //QLabel frameLabel;
+   //frameLabel.setMinimumSize(200, 50);
+   //frameLabel.show();
+   this->ui->label_observer->connect(&listener, SIGNAL(objectNameChanged(QString)),
+                      SLOT(setText(QString)));
 };
 
 void QtVTKRenderWindows::slotExit()
@@ -376,4 +388,14 @@ void QtVTKRenderWindows::AddDistanceMeasurementToView(int i)
 
 	this->DistanceWidget[i]->CreateDefaultRepresentation();
 	this->DistanceWidget[i]->EnabledOn();
+}
+
+void QtVTKRenderWindows::SimpleTranslate(float v)
+{
+	double a[3], b[3];
+	planeWidget[0]->GetOrigin(a);
+	a[0] += v;
+	planeWidget[0]->SetOrigin(a);
+	planeWidget[0]->UpdatePlacement();
+	ui->view4->repaint();
 }
