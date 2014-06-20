@@ -30,6 +30,19 @@
 #include "vtkPointHandleRepresentation3D.h"
 #include "vtkPointHandleRepresentation2D.h"
 #include "vtkTransform.h"
+#include "vtkColorTransferFunction.h"
+#include "vtkPiecewiseFunction.h"
+#include "vtkVolumeProperty.h"
+#include "vtkSmartVolumeMapper.h"
+#include "vtkImageResample.h"
+#include "vtkNew.h"
+
+#include "vtkMultiBlockPLOT3DReader.h"
+#include "vtkStreamLine.h"
+#include "vtkPolyDataMapper.h"
+#include "vtkStructuredGridOutlineFilter.h"
+#include <vtkMultiBlockPLOT3DReader.h>
+#include <vtkMultiBlockDataSet.h>
 
 #include "qlabel.h"
 
@@ -120,18 +133,66 @@ public:
 	vtkResliceCursorWidget *RCW[3];
 };
 
+vtkSmartPointer<vtkImageAlgorithm> ReadImageData(int argc, char *argv[])
+{
+	int count = 1;
+	char *dirname = NULL;
+	char *fileName=0;
+	int fileType=0;
+	vtkSmartPointer<vtkImageAlgorithm> readerRet;
+	//while ( count < argc )
+	//{
+		if ( !strcmp( argv[count], "-DICOM" ) )
+		{
+			dirname = new char[strlen(argv[count+1])+1];
+			sprintf( dirname, "%s", argv[count+1] );
+			count += 2;
+			vtkSmartPointer<vtkDICOMImageReader> reader =
+				vtkSmartPointer<vtkDICOMImageReader>::New();
+			reader->SetDirectoryName(dirname);
+			readerRet = reader;
+		}
+		else if ( !strcmp( argv[count], "-PLOT3D" ) )
+		{
+			//fileName = new char[strlen(argv[count+1])+1];
+			////fileType = VTI_FILETYPE;
+			//sprintf( fileName, "%s", argv[count+1] );
 
-QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
+			std::string xyzFile = argv[count+1]; // "combxyz.bin";
+			std::string qFile = argv[count+2]; // "combq.bin";
+			count += 3;
+
+			vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
+				vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
+			pl3d->SetXYZFileName(xyzFile.c_str());
+			pl3d->SetQFileName(qFile.c_str());
+			pl3d->SetScalarFunctionNumber(100);
+			pl3d->SetVectorFunctionNumber(202);
+			//readerRet = pl3d;
+			//pl3d->Update();
+
+		}
+	//}
+
+
+	readerRet->Update();
+
+	return readerRet;
+	//readerRet = reader;
+	//	reader->GetOutput()->GetDimensions(imageDims);
+}
+
+
+QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 {
 	this->ui = new Ui_QtVTKRenderWindows;
 	this->ui->setupUi(this);
 
-	vtkSmartPointer< vtkDICOMImageReader > reader =
-		vtkSmartPointer< vtkDICOMImageReader >::New();
-	reader->SetDirectoryName(argv[1]);
-	reader->Update();
+	vtkImageData *input=0;
+	vtkSmartPointer<vtkImageAlgorithm> reader = ReadImageData(argc, argv);
+	input = reader->GetOutput();
 	int imageDims[3];
-	reader->GetOutput()->GetDimensions(imageDims);
+	input->GetDimensions(imageDims);
 
 
 	for (int i = 0; i < 3; i++)
@@ -162,7 +223,7 @@ QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
 		rep->GetResliceCursorActor()->
 			GetCursorAlgorithm()->SetReslicePlaneNormal(i);
 
-		riw[i]->SetInputData(reader->GetOutput());
+		riw[i]->SetInputData(input);
 		riw[i]->SetSliceOrientation(i);
 		riw[i]->SetResliceModeToAxisAligned();
 	}
@@ -208,6 +269,167 @@ QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
 		planeWidget[i]->InteractionOn();
 	}
 
+	//////////////////volume rendering
+	vtkSmartPointer< vtkRenderer > renVol =
+		vtkSmartPointer< vtkRenderer >::New();
+	this->ui->view5->GetRenderWindow()->AddRenderer(renVol);
+	vtkRenderWindowInteractor *irenVol = this->ui->view4->GetInteractor();
+
+
+
+	vtkImageResample *resample = vtkImageResample::New();
+
+	// Create our volume and mapper
+	vtkVolume *volume = vtkVolume::New();
+	vtkSmartVolumeMapper *mapper = vtkSmartVolumeMapper::New();
+
+	mapper->SetInputConnection( reader->GetOutputPort() );
+
+
+	// Create our transfer function
+	vtkColorTransferFunction *colorFun = vtkColorTransferFunction::New();
+	vtkPiecewiseFunction *opacityFun = vtkPiecewiseFunction::New();
+
+	// Create the property and attach the transfer functions
+	vtkVolumeProperty *property = vtkVolumeProperty::New();
+	property->SetIndependentComponents(true);
+	property->SetColor( colorFun );
+	property->SetScalarOpacity( opacityFun );
+	property->SetInterpolationTypeToLinear();
+
+	// connect up the volume to the property and the mapper
+	volume->SetProperty( property );
+	volume->SetMapper( mapper );
+
+	// Depending on the blend type selected as a command line option,
+	// adjustthe transfer function
+	colorFun->AddRGBPoint( -3024, 0, 0, 0, 0.5, 0.0 );
+	colorFun->AddRGBPoint( -16, 0.73, 0.25, 0.30, 0.49, .61 );
+	colorFun->AddRGBPoint( 641, .90, .82, .56, .5, 0.0 );
+	colorFun->AddRGBPoint( 3071, 1, 1, 1, .5, 0.0 );
+
+	opacityFun->AddPoint(-3024, 0, 0.5, 0.0 );
+	opacityFun->AddPoint(-16, 0, .49, .61 );
+	opacityFun->AddPoint(641, .72, .5, 0.0 );
+	opacityFun->AddPoint(3071, .71, 0.5, 0.0);
+
+	mapper->SetBlendModeToComposite();
+	property->ShadeOn();
+	property->SetAmbient(0.1);
+	property->SetDiffuse(0.9);
+	property->SetSpecular(0.2);
+	property->SetSpecularPower(10.0);
+	property->SetScalarOpacityUnitDistance(0.8919);
+
+	// Add the volume to the scene
+	renVol->AddVolume( volume );
+	////////////////////////////
+
+	//////////////////
+	vtkSmartPointer< vtkRenderer > renSL =
+		vtkSmartPointer< vtkRenderer >::New();
+	this->ui->view6->GetRenderWindow()->AddRenderer(renSL);
+	vtkRenderWindowInteractor *irenSL = this->ui->view4->GetInteractor();
+
+	std::string xyzFile = argv[3]; // "combxyz.bin";
+	std::string qFile = argv[4]; // "combq.bin";
+
+  vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
+    vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
+
+	pl3d->SetXYZFileName(xyzFile.c_str());
+	pl3d->SetQFileName(qFile.c_str());
+	pl3d->SetScalarFunctionNumber(100);
+	pl3d->SetVectorFunctionNumber(202);
+	pl3d->Update();
+	//	int imageDims[3];
+	//pl3d->GetOutput()->GetBlock(0)->get ->GetDimensions(imageDims);
+
+	// Source of the streamlines
+	vtkSmartPointer<vtkPlaneSource> seeds = 
+		vtkSmartPointer<vtkPlaneSource>::New();
+	seeds->SetXResolution(4);
+	seeds->SetYResolution(4);
+	seeds->SetOrigin(2,-2,26);
+	seeds->SetPoint1(2,2,26);
+	seeds->SetPoint2(2,-2,32);
+#if 1
+
+	// Streamline itself
+	vtkSmartPointer<vtkStreamLine> streamLine = 
+		vtkSmartPointer<vtkStreamLine>::New();
+#if VTK_MAJOR_VERSION <= 5
+	streamLine->SetInputConnection(pl3d->GetOutputPort());
+	streamLine->SetSource(seeds->GetOutput());
+#else
+	pl3d->Update();
+	streamLine->SetInputData(pl3d->GetOutput()->GetBlock(0));
+	streamLine->SetSourceConnection(seeds->GetOutputPort());
+#endif
+	//streamLine->SetStartPosition(2,-2,30);
+	// as alternative to the SetSource(), which can handle multiple
+	// streamlines, you can set a SINGLE streamline from
+	// SetStartPosition()
+	streamLine->SetMaximumPropagationTime(200);
+	streamLine->SetIntegrationStepLength(.2);
+	streamLine->SetStepLength(.001);
+	streamLine->SetNumberOfThreads(1);
+	streamLine->SetIntegrationDirectionToForward();
+	streamLine->VorticityOn();
+
+	vtkSmartPointer<vtkPolyDataMapper> streamLineMapper = 
+		vtkSmartPointer<vtkPolyDataMapper>::New();
+	streamLineMapper->SetInputConnection(streamLine->GetOutputPort());
+
+	vtkSmartPointer<vtkActor> streamLineActor = 
+		vtkSmartPointer<vtkActor>::New();
+	streamLineActor->SetMapper(streamLineMapper);
+	streamLineActor->VisibilityOn();
+
+	// Outline-Filter for the grid
+	vtkSmartPointer<vtkStructuredGridOutlineFilter> outline = 
+		vtkSmartPointer<vtkStructuredGridOutlineFilter>::New();
+#if VTK_MAJOR_VERSION <= 5
+	outline->SetInputConnection(pl3d->GetOutputPort());
+#else
+	outline->SetInputData(pl3d->GetOutput()->GetBlock(0));
+#endif
+	vtkSmartPointer<vtkPolyDataMapper> outlineMapper = 
+		vtkSmartPointer<vtkPolyDataMapper>::New();
+	outlineMapper->SetInputConnection(outline->GetOutputPort());
+
+	vtkSmartPointer<vtkActor> outlineActor = 
+		vtkSmartPointer<vtkActor>::New();
+	outlineActor->SetMapper(outlineMapper);
+	outlineActor->GetProperty()->SetColor(1, 1, 1);
+
+	// Create the RenderWindow, Renderer and Actors
+	//vtkSmartPointer<vtkRenderer> renderer = 
+	//	vtkSmartPointer<vtkRenderer>::New();
+	/*vtkSmartPointer<vtkRenderWindow> renderWindow = 
+		vtkSmartPointer<vtkRenderWindow>::New();
+	renderWindow->AddRenderer(renderer);*/
+
+	//vtkSmartPointer<vtkRenderWindowInteractor> interactor = 
+	//	vtkSmartPointer<vtkRenderWindowInteractor>::New();
+	//interactor->SetRenderWindow(renderWindow);
+
+	vtkSmartPointer<vtkInteractorStyleTrackballCamera> style = 
+		vtkSmartPointer<vtkInteractorStyleTrackballCamera>::New();
+	irenSL->SetInteractorStyle(style);
+
+	renSL->AddActor(streamLineActor);
+	renSL->AddActor(outlineActor);
+
+	// Add the actors to the renderer, set the background and size
+	renSL->SetBackground(0.1, 0.2, 0.4);
+	//renderWindow->SetSize(300, 300);
+	irenSL->Initialize();
+	//renderWindow->Render();
+	////////////////////
+#endif
+
+
 	vtkSmartPointer<vtkResliceCursorCallback> cbk =
 		vtkSmartPointer<vtkResliceCursorCallback>::New();
 
@@ -252,14 +474,16 @@ QtVTKRenderWindows::QtVTKRenderWindows( int vtkNotUsed(argc), char *argv[])
 	connect(this->ui->resetButton, SIGNAL(pressed()), this, SLOT(ResetViews()));
 	connect(this->ui->AddDistance1Button, SIGNAL(pressed()), this, SLOT(AddDistanceMeasurementToView1()));
 
-   controller.addListener(listener);
-   controller.enableGesture(Leap::Gesture::TYPE_CIRCLE);
-   //QLabel frameLabel;
-   //frameLabel.setMinimumSize(200, 50);
-   //frameLabel.show();
-   this->ui->label_observer->connect(&listener, SIGNAL(objectNameChanged(QString)),
-                      SLOT(setText(QString)));
-   connect(&listener, SIGNAL(translate(float)), this, SLOT(SimpleTranslate(float)));
+	controller.addListener(listener);
+	controller.enableGesture(Leap::Gesture::TYPE_CIRCLE);
+	//QLabel frameLabel;
+	//frameLabel.setMinimumSize(200, 50);
+	//frameLabel.show();
+	this->ui->label_observer->connect(&listener, SIGNAL(objectNameChanged(QString)),
+		SLOT(setText(QString)));
+	connect(&listener, SIGNAL(translate(float)), this, SLOT(SimpleTranslate(float)));
+
+	//reader->Delete();
 };
 
 void QtVTKRenderWindows::slotExit()

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>990</width>
+    <width>1024</width>
     <height>583</height>
    </rect>
   </property>
@@ -29,30 +29,36 @@
      <rect>
       <x>10</x>
       <y>30</y>
-      <width>591</width>
+      <width>831</width>
       <height>531</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_2">
+     <item row="1" column="1">
+      <widget class="QVTKWidget" name="view3" native="true"/>
+     </item>
      <item row="1" column="0">
       <widget class="QVTKWidget" name="view2" native="true"/>
      </item>
      <item row="0" column="1">
       <widget class="QVTKWidget" name="view4" native="true"/>
      </item>
-     <item row="1" column="1">
-      <widget class="QVTKWidget" name="view3" native="true"/>
-     </item>
      <item row="0" column="0">
       <widget class="QVTKWidget" name="view1" native="true"/>
+     </item>
+     <item row="0" column="2">
+      <widget class="QVTKWidget" name="view5" native="true"/>
+     </item>
+     <item row="1" column="2">
+      <widget class="QVTKWidget" name="view6" native="true"/>
      </item>
     </layout>
    </widget>
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>629</x>
-      <y>39</y>
+      <x>850</x>
+      <y>30</y>
       <width>161</width>
       <height>521</height>
      </rect>

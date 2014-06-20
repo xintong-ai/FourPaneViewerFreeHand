@@ -8,12 +8,14 @@ if(POLICY CMP0020)
   cmake_policy(SET CMP0020 NEW)
 endif()
 
-find_package(VTK COMPONENTS
-  vtkCommonCore
-  vtkFiltersSources
-  vtkGUISupportQt
-  vtkIOImage
-  vtkInteractionImage
+find_package(VTK 
+#COMPONENTS
+#  vtkCommonCore
+#  vtkFiltersSources
+#  vtkGUISupportQt
+#  vtkIOImage
+#  vtkInteractionImage
+#  vtkRenderingVolumeOpenGL
 )
 include(${VTK_USE_FILE})
 
