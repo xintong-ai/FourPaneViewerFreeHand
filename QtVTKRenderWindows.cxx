@@ -46,7 +46,31 @@
 
 #include "qlabel.h"
 
+#include <algorithm>
 
+void MyListener::onFrame(const Leap::Controller & ctl)
+{
+
+	if(timer->elapsed() > 200)
+	{
+		Leap::Frame f = ctl.frame();
+		// This is a hack so that we avoid having to declare a signal and
+		// use moc generated code.
+		setObjectName(QString::number(f.id()));
+		// emits objectNameChanged(QString)
+		emit translate2(SimpleTranslate(f));
+
+		/////////////////
+		Leap::Vector origin, point1, point2;
+		//GetRectangle(f, origin, point1, point2);
+		GetAbsoluteRectangle(f, origin, point1, point2);
+		QVector3D origin_q(origin.x, origin.y, origin.z);
+		QVector3D point1_q(point1.x, point1.y, point1.z);
+		QVector3D point2_q(point2.x, point2.y, point2.z);
+		emit UpdateRectangle(origin_q, point1_q, point2_q);
+		timer->restart();
+	}
+}
 
 //----------------------------------------------------------------------------
 class vtkResliceCursorCallback : public vtkCommand
@@ -64,7 +88,7 @@ public:
 			ev == vtkResliceCursorWidget::ResliceThicknessChangedEvent)
 		{
 			// Render everything
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < 1; i++)
 			{
 				this->RCW[i]->Render();
 			}
@@ -104,7 +128,7 @@ public:
 			// Although the return value is not used, we keep the get calls
 			// in case they had side-effects
 			rep->GetResliceCursorActor()->GetCursorAlgorithm()->GetResliceCursor();
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < 1; i++)
 			{
 				vtkPlaneSource *ps = static_cast< vtkPlaneSource * >(
 					this->IPW[i]->GetPolyDataAlgorithm());
@@ -121,7 +145,7 @@ public:
 		}
 
 		// Render everything
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 1; i++)
 		{
 			this->RCW[i]->Render();
 		}
@@ -142,36 +166,36 @@ vtkSmartPointer<vtkImageAlgorithm> ReadImageData(int argc, char *argv[])
 	vtkSmartPointer<vtkImageAlgorithm> readerRet;
 	//while ( count < argc )
 	//{
-		if ( !strcmp( argv[count], "-DICOM" ) )
-		{
-			dirname = new char[strlen(argv[count+1])+1];
-			sprintf( dirname, "%s", argv[count+1] );
-			count += 2;
-			vtkSmartPointer<vtkDICOMImageReader> reader =
-				vtkSmartPointer<vtkDICOMImageReader>::New();
-			reader->SetDirectoryName(dirname);
-			readerRet = reader;
-		}
-		else if ( !strcmp( argv[count], "-PLOT3D" ) )
-		{
-			//fileName = new char[strlen(argv[count+1])+1];
-			////fileType = VTI_FILETYPE;
-			//sprintf( fileName, "%s", argv[count+1] );
+	if ( !strcmp( argv[count], "-DICOM" ) )
+	{
+		dirname = new char[strlen(argv[count+1])+1];
+		sprintf( dirname, "%s", argv[count+1] );
+		count += 2;
+		vtkSmartPointer<vtkDICOMImageReader> reader =
+			vtkSmartPointer<vtkDICOMImageReader>::New();
+		reader->SetDirectoryName(dirname);
+		readerRet = reader;
+	}
+	else if ( !strcmp( argv[count], "-PLOT3D" ) )
+	{
+		//fileName = new char[strlen(argv[count+1])+1];
+		////fileType = VTI_FILETYPE;
+		//sprintf( fileName, "%s", argv[count+1] );
 
-			std::string xyzFile = argv[count+1]; // "combxyz.bin";
-			std::string qFile = argv[count+2]; // "combq.bin";
-			count += 3;
+		std::string xyzFile = argv[count+1]; // "combxyz.bin";
+		std::string qFile = argv[count+2]; // "combq.bin";
+		count += 3;
 
-			vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
-				vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
-			pl3d->SetXYZFileName(xyzFile.c_str());
-			pl3d->SetQFileName(qFile.c_str());
-			pl3d->SetScalarFunctionNumber(100);
-			pl3d->SetVectorFunctionNumber(202);
-			//readerRet = pl3d;
-			//pl3d->Update();
+		vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
+			vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
+		pl3d->SetXYZFileName(xyzFile.c_str());
+		pl3d->SetQFileName(qFile.c_str());
+		pl3d->SetScalarFunctionNumber(100);
+		pl3d->SetVectorFunctionNumber(202);
+		//readerRet = pl3d;
+		//pl3d->Update();
 
-		}
+	}
 	//}
 
 
@@ -191,11 +215,11 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	vtkImageData *input=0;
 	vtkSmartPointer<vtkImageAlgorithm> reader = ReadImageData(argc, argv);
 	input = reader->GetOutput();
-	int imageDims[3];
 	input->GetDimensions(imageDims);
+	input->GetSpacing(imageSpacing);
 
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		riw[i] = vtkSmartPointer< vtkResliceImageViewer >::New();
 	}
@@ -204,15 +228,15 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	riw[0]->SetupInteractor(
 		this->ui->view1->GetRenderWindow()->GetInteractor());
 
-	this->ui->view2->SetRenderWindow(riw[1]->GetRenderWindow());
-	riw[1]->SetupInteractor(
-		this->ui->view2->GetRenderWindow()->GetInteractor());
+	//this->ui->view2->SetRenderWindow(riw[1]->GetRenderWindow());
+	//riw[1]->SetupInteractor(
+	//	this->ui->view2->GetRenderWindow()->GetInteractor());
 
-	this->ui->view3->SetRenderWindow(riw[2]->GetRenderWindow());
-	riw[2]->SetupInteractor(
-		this->ui->view3->GetRenderWindow()->GetInteractor());
+	//this->ui->view3->SetRenderWindow(riw[2]->GetRenderWindow());
+	//riw[2]->SetupInteractor(
+	//	this->ui->view3->GetRenderWindow()->GetInteractor());
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		// make them all share the same reslice cursor object.
 		vtkResliceCursorLineRepresentation *rep =
@@ -241,7 +265,7 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	this->ui->view4->GetRenderWindow()->AddRenderer(ren);
 	vtkRenderWindowInteractor *iren = this->ui->view4->GetInteractor();
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		planeWidget[i] = vtkSmartPointer<vtkImagePlaneWidget>::New();
 		planeWidget[i]->SetInteractor( iren );
@@ -268,6 +292,8 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 		planeWidget[i]->On();
 		planeWidget[i]->InteractionOn();
 	}
+	//planeWidget[1]->Off();
+	//planeWidget[2]->Off();
 
 	//////////////////volume rendering
 	vtkSmartPointer< vtkRenderer > renVol =
@@ -334,22 +360,23 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	std::string xyzFile = argv[3]; // "combxyz.bin";
 	std::string qFile = argv[4]; // "combq.bin";
 
-  vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
-    vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
+	vtkSmartPointer<vtkMultiBlockPLOT3DReader> pl3d =
+		vtkSmartPointer<vtkMultiBlockPLOT3DReader>::New();
 
 	pl3d->SetXYZFileName(xyzFile.c_str());
 	pl3d->SetQFileName(qFile.c_str());
 	pl3d->SetScalarFunctionNumber(100);
 	pl3d->SetVectorFunctionNumber(202);
 	pl3d->Update();
+	
 	//	int imageDims[3];
 	//pl3d->GetOutput()->GetBlock(0)->get ->GetDimensions(imageDims);
 
 	// Source of the streamlines
-	vtkSmartPointer<vtkPlaneSource> seeds = 
+	seeds = 
 		vtkSmartPointer<vtkPlaneSource>::New();
-	seeds->SetXResolution(4);
-	seeds->SetYResolution(4);
+	seeds->SetXResolution(8);
+	seeds->SetYResolution(8);
 	seeds->SetOrigin(2,-2,26);
 	seeds->SetPoint1(2,2,26);
 	seeds->SetPoint2(2,-2,32);
@@ -407,7 +434,7 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	//vtkSmartPointer<vtkRenderer> renderer = 
 	//	vtkSmartPointer<vtkRenderer>::New();
 	/*vtkSmartPointer<vtkRenderWindow> renderWindow = 
-		vtkSmartPointer<vtkRenderWindow>::New();
+	vtkSmartPointer<vtkRenderWindow>::New();
 	renderWindow->AddRenderer(renderer);*/
 
 	//vtkSmartPointer<vtkRenderWindowInteractor> interactor = 
@@ -433,7 +460,7 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	vtkSmartPointer<vtkResliceCursorCallback> cbk =
 		vtkSmartPointer<vtkResliceCursorCallback>::New();
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		cbk->IPW[i] = planeWidget[i];
 		cbk->RCW[i] = riw[i]->GetResliceCursorWidget();
@@ -457,8 +484,8 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	}
 
 	this->ui->view1->show();
-	this->ui->view2->show();
-	this->ui->view3->show();
+	//this->ui->view2->show();
+	//this->ui->view3->show();
 
 	// Set up action signals and slots
 	connect(this->ui->actionExit, SIGNAL(triggered()), this, SLOT(slotExit()));
@@ -481,8 +508,23 @@ QtVTKRenderWindows::QtVTKRenderWindows( int argc, char *argv[])
 	//frameLabel.show();
 	this->ui->label_observer->connect(&listener, SIGNAL(objectNameChanged(QString)),
 		SLOT(setText(QString)));
-	connect(&listener, SIGNAL(translate(float)), this, SLOT(SimpleTranslate(float)));
+	connect(&listener, SIGNAL(translate2(float)), this, SLOT(SimpleTranslate(float)));
+	connect(&listener, SIGNAL(UpdateRectangle(QVector3D, QVector3D, QVector3D)), 
+		this, SLOT(UpdateSlicePlane(QVector3D, QVector3D, QVector3D)));
+	connect(&listener, SIGNAL(UpdateRectangle(QVector3D, QVector3D, QVector3D)), 
+		this, SLOT(UpdateSeedPlane(QVector3D, QVector3D, QVector3D)));
+	
 
+	//double xyz[3];
+	//planeWidget[2]->GetOrigin(xyz);
+	//cout<<"++origin:\t"<<xyz[0]<<",\t"<<xyz[1]<<",\t"<<xyz[2]<<endl;
+	//planeWidget[2]->GetPoint1(xyz);
+	//cout<<"++point1:\t"<<xyz[0]<<",\t"<<xyz[1]<<",\t"<<xyz[2]<<endl;
+	//planeWidget[2]->GetPoint1(xyz);
+	//cout<<"++point2:\t"<<xyz[0]<<",\t"<<xyz[1]<<",\t"<<xyz[2]<<endl;
+
+
+	//void UpdateRectangle(Leap::Vector origin, Leap::Vector point1, Leap::Vector point2);
 	//reader->Delete();
 };
 
@@ -496,7 +538,7 @@ void QtVTKRenderWindows::resliceMode(int mode)
 	this->ui->thickModeCheckBox->setEnabled(mode ? 1 : 0);
 	this->ui->blendModeGroupBox->setEnabled(mode ? 1 : 0);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		riw[i]->SetResliceMode(mode ? 1 : 0);
 		riw[i]->GetRenderer()->ResetCamera();
@@ -506,7 +548,7 @@ void QtVTKRenderWindows::resliceMode(int mode)
 
 void QtVTKRenderWindows::thickMode(int mode)
 {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		riw[i]->SetThickMode(mode ? 1 : 0);
 		riw[i]->Render();
@@ -515,7 +557,7 @@ void QtVTKRenderWindows::thickMode(int mode)
 
 void QtVTKRenderWindows::SetBlendMode(int m)
 {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		vtkImageSlabReslice *thickSlabReslice = vtkImageSlabReslice::SafeDownCast(
 			vtkResliceCursorThickLineRepresentation::SafeDownCast(
@@ -543,14 +585,14 @@ void QtVTKRenderWindows::SetBlendModeToMeanIP()
 void QtVTKRenderWindows::ResetViews()
 {
 	// Reset the reslice image views
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		riw[i]->Reset();
 	}
 
 	// Also sync the Image plane widget on the 3D top right view with any
 	// changes to the reslice cursor.
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		vtkPlaneSource *ps = static_cast< vtkPlaneSource * >(
 			planeWidget[i]->GetPolyDataAlgorithm());
@@ -567,11 +609,11 @@ void QtVTKRenderWindows::ResetViews()
 
 void QtVTKRenderWindows::Render()
 {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		riw[i]->Render();
 	}
-	this->ui->view3->GetRenderWindow()->Render();
+	//this->ui->view3->GetRenderWindow()->Render();
 }
 
 void QtVTKRenderWindows::AddDistanceMeasurementToView1()
@@ -622,5 +664,72 @@ void QtVTKRenderWindows::SimpleTranslate(float v)
 	a[0] += v;
 	planeWidget[0]->SetOrigin(a);
 	planeWidget[0]->UpdatePlacement();
+	ui->view4->repaint();
+}
+
+inline QVector3D GetPosInDomain(QVector3D domainMin, QVector3D domainMax, QVector3D p)
+{
+	QVector3D domainCenter = (domainMin + domainMax) * 0.5;
+	QVector3D domainSize = domainMax - domainMin;
+	float domainSizeMax = std::max(std::max(domainSize.x(), domainSize.y()), domainSize.z());
+	//return domainCenter + (p - QVector3D(0.5, 0.5, 0.5)) * domainSizeMax;
+	return domainMin + p * domainSize;
+}
+
+void QtVTKRenderWindows::UpdateSeedPlane(QVector3D origin, QVector3D point1, QVector3D point2)
+{
+	QVector3D combMin(0, - 5.66214, 23.3312);
+	QVector3D combMax(16.51, 5.66214, 36.195);
+
+	//QVector3D len = combMax - combMin;
+	
+	//cout<<"origin:"<<origin.x()<<","<<origin.y()<<","<<origin.z()<<endl;;
+
+
+	origin = GetPosInDomain(combMin, combMax, origin);
+	point1 = GetPosInDomain(combMin, combMax, point1);
+	point2 = GetPosInDomain(combMin, combMax, point2);
+	cout<<"origin:"<<origin.x()<<","<<origin.y()<<","<<origin.z()<<endl;;
+	cout<<"point1:"<<point1.x()<<","<<point1.y()<<","<<point1.z()<<endl;;
+	cout<<"point2:"<<point2.x()<<","<<point2.y()<<","<<point2.z()<<endl;;
+
+	seeds->SetOrigin(origin.x(), origin.y(), origin.z());
+	seeds->SetPoint1(point1.x(), point1.y(), point1.z());
+	seeds->SetPoint2(point2.x(), point2.y(), point2.z());
+	ui->view6->repaint();
+}
+
+//inline QVector3D GetPosInDomain(QVector3D dim, QVector3D p)
+//{
+//	QVector3D domainCenter = dim * 0.5;
+//	//QVector3D domainSize = domainMax - domainMin;
+//	float domainSizeMax = std::max(std::max(dim.x(), dim.y()), dim.z());
+//	return domainCenter + (p - QVector3D(0.5, 0.5, 0.5)) * dim;
+//}
+
+
+void QtVTKRenderWindows::UpdateSlicePlane(QVector3D origin, QVector3D point1, QVector3D point2)
+{
+	//QVector3D combMin(0, - 5.66214, 23.3312);
+	//QVector3D combMax(16.51, 5.66214, 36.195);
+	//QVector3D len = combMax - combMin;
+	
+	//cout<<"origin:"<<origin.x()<<","<<origin.y()<<","<<origin.z()<<endl;;
+
+
+
+	QVector3D dim(imageDims[0] * imageSpacing[0], imageDims[1] * imageSpacing[1], imageDims[2] * imageSpacing[2]);
+	origin = origin * dim;// GetPosInDomain(combMin, combMax, origin);
+	point1 = point1 * dim;//GetPosInDomain(combMin, combMax, point1);
+	point2 = point2 * dim;//GetPosInDomain(combMin, combMax, point2);
+
+	cout<<"origin:\t"<<origin.x()<<",\t"<<origin.y()<<",\t"<<origin.z()<<endl;
+	cout<<"point1:\t"<<point1.x()<<",\t"<<point1.y()<<",\t"<<point1.z()<<endl;
+	cout<<"point2:\t"<<point2.x()<<",\t"<<point2.y()<<",\t"<<point2.z()<<endl;
+
+
+	planeWidget[0]->SetOrigin(origin.x(), origin.y(), origin.z());
+	planeWidget[0]->SetPoint1(point1.x(), point1.y(), point1.z());
+	planeWidget[0]->SetPoint2(point2.x(), point2.y(), point2.z());
 	ui->view4->repaint();
 }

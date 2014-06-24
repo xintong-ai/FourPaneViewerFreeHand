@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1024</width>
-    <height>583</height>
+    <width>1149</width>
+    <height>770</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,27 +29,21 @@
      <rect>
       <x>10</x>
       <y>30</y>
-      <width>831</width>
-      <height>531</height>
+      <width>961</width>
+      <height>721</height>
      </rect>
     </property>
     <layout class="QGridLayout" name="gridLayout_2">
-     <item row="1" column="1">
-      <widget class="QVTKWidget" name="view3" native="true"/>
-     </item>
-     <item row="1" column="0">
-      <widget class="QVTKWidget" name="view2" native="true"/>
-     </item>
      <item row="0" column="1">
       <widget class="QVTKWidget" name="view4" native="true"/>
      </item>
      <item row="0" column="0">
       <widget class="QVTKWidget" name="view1" native="true"/>
      </item>
-     <item row="0" column="2">
+     <item row="1" column="0">
       <widget class="QVTKWidget" name="view5" native="true"/>
      </item>
-     <item row="1" column="2">
+     <item row="1" column="1">
       <widget class="QVTKWidget" name="view6" native="true"/>
      </item>
     </layout>
@@ -57,8 +51,8 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>850</x>
-      <y>30</y>
+      <x>980</x>
+      <y>20</y>
       <width>161</width>
       <height>521</height>
      </rect>
